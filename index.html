@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>2048</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'Inter', sans-serif;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  touch-action: none;
+  overflow: hidden;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 25%, #f093fb 50%, #f5576c 75%, #4facfe 100%);
+  background-size: 400% 400%;
+  animation: gradientShift 15s ease infinite;
+}
+
+@keyframes gradientShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* Floating orbs background */
+.bg-orb {
+  position: fixed;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.4;
+  pointer-events: none;
+  z-index: 0;
+}
+.bg-orb:nth-child(1) { width: 400px; height: 400px; background: #ff6b6b; top: -100px; left: -100px; animation: float1 20s ease-in-out infinite; }
+.bg-orb:nth-child(2) { width: 300px; height: 300px; background: #4ecdc4; bottom: -50px; right: -50px; animation: float2 25s ease-in-out infinite; }
+.bg-orb:nth-child(3) { width: 250px; height: 250px; background: #45b7d1; top: 50%; left: 60%; animation: float3 18s ease-in-out infinite; }
+
+@keyframes float1 { 0%, 100% { transform: translate(0, 0) scale(1); } 50% { transform: translate(100px, 80px) scale(1.1); } }
+@keyframes float2 { 0%, 100% { transform: translate(0, 0) scale(1); } 50% { transform: translate(-80px, -60px) scale(1.2); } }
+@keyframes float3 { 0%, 100% { transform: translate(0, 0) scale(0.9); } 50% { transform: translate(-60px, 40px) scale(1.1); } }
+
+.container {
+  text-align: center;
+  position: relative;
+  z-index: 1;
+}
+
+h1 {
+  font-size: 72px;
+  font-weight: 900;
+  background: linear-gradient(135deg, #fff 0%, rgba(255,255,255,0.7) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 4px;
+  letter-spacing: -2px;
+  text-shadow: none;
+  filter: drop-shadow(0 2px 10px rgba(0,0,0,0.15));
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.scores { display: flex; gap: 10px; }
+
+.score-box {
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  padding: 8px 22px;
+  border-radius: 14px;
+  text-align: center;
+  min-width: 90px;
+  transition: transform 0.2s ease;
+}
+.score-box:hover { transform: translateY(-2px); }
+.score-box .label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: rgba(255,255,255,0.7);
+  font-weight: 600;
+}
+.score-box .value {
+  font-size: 24px;
+  font-weight: 800;
+  color: #fff;
+}
+
+.score-pop {
+  animation: scorePop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes scorePop {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.3); }
+  100% { transform: scale(1); }
+}
+
+.btn {
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: #fff;
+  padding: 12px 28px;
+  border-radius: 14px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  letter-spacing: 0.5px;
+  transition: all 0.3s ease;
+}
+.btn:hover {
+  background: rgba(255, 255, 255, 0.35);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+}
+.btn:active { transform: translateY(0); }
+
+.message {
+  color: rgba(255,255,255,0.7);
+  font-size: 13px;
+  font-weight: 500;
+  margin-bottom: 14px;
+  letter-spacing: 0.5px;
+}
+
+.board {
+  position: relative;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(30px);
+  -webkit-backdrop-filter: blur(30px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 20px;
+  padding: 14px;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  width: 440px;
+  height: 440px;
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.cell {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.tile {
+  position: absolute;
+  width: 94px;
+  height: 94px;
+  border-radius: 14px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-weight: 800;
+  font-size: 34px;
+  transition: top 0.15s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+              left 0.15s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow:
+    0 4px 15px rgba(0, 0, 0, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.tile.new { animation: tileAppear 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
+.tile.merged { animation: tileMerge 0.35s cubic-bezier(0.34, 1.56, 0.64, 1); }
+
+@keyframes tileAppear {
+  0% { transform: scale(0) rotate(-10deg); opacity: 0; }
+  60% { transform: scale(1.1) rotate(2deg); }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+@keyframes tileMerge {
+  0% { transform: scale(1); }
+  30% { transform: scale(1.25); }
+  60% { transform: scale(0.95); }
+  100% { transform: scale(1); }
+}
+
+.overlay {
+  display: none;
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-radius: 20px;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  z-index: 10;
+  animation: overlayIn 0.4s ease;
+}
+.overlay.active { display: flex; }
+@keyframes overlayIn {
+  0% { opacity: 0; backdrop-filter: blur(0); }
+  100% { opacity: 1; backdrop-filter: blur(8px); }
+}
+.overlay p {
+  font-size: 52px;
+  font-weight: 900;
+  color: #fff;
+  margin-bottom: 20px;
+  text-shadow: 0 2px 20px rgba(0,0,0,0.3);
+}
+
+/* Particle system */
+.particle {
+  position: absolute;
+  pointer-events: none;
+  border-radius: 50%;
+  z-index: 5;
+}
+
+/* Score float */
+.score-float {
+  position: absolute;
+  font-size: 20px;
+  font-weight: 800;
+  color: #fff;
+  pointer-events: none;
+  z-index: 20;
+  text-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  animation: floatUp 0.8s ease-out forwards;
+}
+@keyframes floatUp {
+  0% { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(-60px) scale(1.3); }
+}
+
+/* Confetti */
+.confetti {
+  position: fixed;
+  width: 10px;
+  height: 10px;
+  pointer-events: none;
+  z-index: 100;
+}
+
+/* Canvas for confetti */
+#confettiCanvas {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 100;
+}
+</style>
+</head>
+<body>
+
+<div class="bg-orb"></div>
+<div class="bg-orb"></div>
+<div class="bg-orb"></div>
+
+<canvas id="confettiCanvas"></canvas>
+
+<div class="container">
+  <div class="header">
+    <h1>2048</h1>
+    <div class="scores">
+      <div class="score-box" id="scoreBox">
+        <div class="label">Score</div>
+        <div class="value" id="score">0</div>
+      </div>
+      <div class="score-box">
+        <div class="label">Best</div>
+        <div class="value" id="best">0</div>
+      </div>
+    </div>
+  </div>
+  <div class="message">Arrow keys or swipe to play</div>
+  <div style="margin-bottom:14px"><button class="btn" onclick="newGame()">New Game</button></div>
+  <div class="board" id="board">
+    <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
+    <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
+    <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
+    <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
+    <div class="overlay" id="overlay">
+      <p id="endMsg">Game Over!</p>
+      <button class="btn" onclick="newGame()">Try Again</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const TILE_SIZE = 94;
+const GAP = 12;
+const PAD = 14;
+const STEP = TILE_SIZE + GAP;
+
+const COLORS = {
+  2:    { bg: 'rgba(255,255,255,0.45)', fg: '#555', glow: 'rgba(255,255,255,0.3)', size: 34 },
+  4:    { bg: 'rgba(255,240,220,0.55)', fg: '#555', glow: 'rgba(255,220,180,0.3)', size: 34 },
+  8:    { bg: 'rgba(255,180,120,0.6)',  fg: '#fff', glow: 'rgba(255,150,80,0.4)',  size: 34 },
+  16:   { bg: 'rgba(255,140,90,0.65)',  fg: '#fff', glow: 'rgba(255,120,60,0.4)',  size: 34 },
+  32:   { bg: 'rgba(255,100,80,0.65)',  fg: '#fff', glow: 'rgba(255,80,60,0.5)',   size: 34 },
+  64:   { bg: 'rgba(255,65,55,0.7)',    fg: '#fff', glow: 'rgba(255,50,40,0.5)',   size: 34 },
+  128:  { bg: 'rgba(255,210,100,0.7)',  fg: '#fff', glow: 'rgba(255,200,60,0.5)',  size: 30 },
+  256:  { bg: 'rgba(255,200,70,0.75)',  fg: '#fff', glow: 'rgba(255,190,40,0.5)',  size: 30 },
+  512:  { bg: 'rgba(255,190,50,0.8)',   fg: '#fff', glow: 'rgba(255,180,30,0.6)',  size: 30 },
+  1024: { bg: 'rgba(255,180,30,0.85)',  fg: '#fff', glow: 'rgba(255,170,20,0.6)',  size: 24 },
+  2048: { bg: 'rgba(255,215,0,0.9)',    fg: '#fff', glow: 'rgba(255,215,0,0.7)',   size: 24 },
+  4096: { bg: 'rgba(170,100,255,0.85)', fg: '#fff', glow: 'rgba(150,80,255,0.6)',  size: 24 },
+  8192: { bg: 'rgba(100,200,255,0.85)', fg: '#fff', glow: 'rgba(80,180,255,0.6)',  size: 24 },
+};
+
+const board = document.getElementById('board');
+const scoreBox = document.getElementById('scoreBox');
+let grid, score, best = +localStorage.getItem('2048best') || 0, moving = false;
+document.getElementById('best').textContent = best;
+
+function tilePos(r, c) {
+  return { top: PAD + r * STEP, left: PAD + c * STEP };
+}
+
+function createTileEl(r, c, val, isNew) {
+  const el = document.createElement('div');
+  el.className = 'tile' + (isNew ? ' new' : '');
+  const p = tilePos(r, c);
+  el.style.top = p.top + 'px';
+  el.style.left = p.left + 'px';
+  const col = COLORS[val] || { bg: 'rgba(60,50,80,0.85)', fg: '#fff', glow: 'rgba(100,50,200,0.5)', size: 20 };
+  el.style.background = col.bg;
+  el.style.color = col.fg;
+  el.style.fontSize = col.size + 'px';
+  el.style.boxShadow = `0 4px 15px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.4), 0 0 20px ${col.glow}`;
+  el.textContent = val;
+  return el;
+}
+
+// Particle system
+function emitParticles(r, c, val) {
+  const p = tilePos(r, c);
+  const cx = board.offsetLeft + p.left + TILE_SIZE / 2;
+  const cy = board.offsetTop + p.top + TILE_SIZE / 2;
+  const col = COLORS[val] || COLORS[2];
+  const count = Math.min(val / 2, 20);
+  const colors = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#f9ca24', '#f0932b', '#eb4d4b', '#6c5ce7', '#a29bfe'];
+
+  for (let i = 0; i < count; i++) {
+    const particle = document.createElement('div');
+    particle.className = 'particle';
+    const size = 4 + Math.random() * 6;
+    const angle = (Math.PI * 2 * i) / count + Math.random() * 0.5;
+    const dist = 40 + Math.random() * 50;
+    const color = colors[Math.floor(Math.random() * colors.length)];
+
+    particle.style.width = size + 'px';
+    particle.style.height = size + 'px';
+    particle.style.background = color;
+    particle.style.left = cx + 'px';
+    particle.style.top = cy + 'px';
+    particle.style.boxShadow = `0 0 ${size * 2}px ${color}`;
+
+    document.querySelector('.container').appendChild(particle);
+
+    const dx = Math.cos(angle) * dist;
+    const dy = Math.sin(angle) * dist;
+    const duration = 400 + Math.random() * 300;
+
+    particle.animate([
+      { transform: 'translate(0, 0) scale(1)', opacity: 1 },
+      { transform: `translate(${dx}px, ${dy}px) scale(0)`, opacity: 0 }
+    ], { duration, easing: 'cubic-bezier(0, 0.8, 0.2, 1)' }).onfinish = () => particle.remove();
+  }
+}
+
+// Score float animation
+function showScoreFloat(r, c, points) {
+  const p = tilePos(r, c);
+  const el = document.createElement('div');
+  el.className = 'score-float';
+  el.textContent = '+' + points;
+  el.style.left = (p.left + TILE_SIZE / 2 - 15) + 'px';
+  el.style.top = (p.top + 10) + 'px';
+  board.appendChild(el);
+  setTimeout(() => el.remove(), 800);
+}
+
+// Confetti system
+const confettiCanvas = document.getElementById('confettiCanvas');
+const ctx = confettiCanvas.getContext('2d');
+let confettiPieces = [];
+let confettiRunning = false;
+
+function resizeCanvas() {
+  confettiCanvas.width = window.innerWidth;
+  confettiCanvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+function launchConfetti() {
+  const colors = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#f9ca24', '#f0932b', '#6c5ce7', '#a29bfe', '#fd79a8', '#00cec9', '#e17055'];
+  for (let i = 0; i < 150; i++) {
+    confettiPieces.push({
+      x: Math.random() * confettiCanvas.width,
+      y: -20 - Math.random() * 200,
+      w: 6 + Math.random() * 6,
+      h: 4 + Math.random() * 4,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      vx: (Math.random() - 0.5) * 6,
+      vy: 2 + Math.random() * 4,
+      rotation: Math.random() * 360,
+      rotSpeed: (Math.random() - 0.5) * 10,
+      life: 1,
+    });
+  }
+  if (!confettiRunning) {
+    confettiRunning = true;
+    animateConfetti();
+  }
+}
+
+function animateConfetti() {
+  ctx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
+  confettiPieces.forEach(p => {
+    p.x += p.vx;
+    p.vy += 0.05;
+    p.y += p.vy;
+    p.rotation += p.rotSpeed;
+    p.life -= 0.003;
+    ctx.save();
+    ctx.translate(p.x, p.y);
+    ctx.rotate(p.rotation * Math.PI / 180);
+    ctx.globalAlpha = Math.max(0, p.life);
+    ctx.fillStyle = p.color;
+    ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+    ctx.restore();
+  });
+  confettiPieces = confettiPieces.filter(p => p.life > 0 && p.y < confettiCanvas.height + 20);
+  if (confettiPieces.length > 0) {
+    requestAnimationFrame(animateConfetti);
+  } else {
+    confettiRunning = false;
+    ctx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
+  }
+}
+
+function render(mergedPositions) {
+  board.querySelectorAll('.tile').forEach(t => t.remove());
+  for (let r = 0; r < 4; r++)
+    for (let c = 0; c < 4; c++)
+      if (grid[r][c]) {
+        const isMerged = mergedPositions && mergedPositions.some(p => p[0] === r && p[1] === c);
+        const el = createTileEl(r, c, grid[r][c], false);
+        if (isMerged) el.classList.add('merged');
+        board.appendChild(el);
+      }
+}
+
+function emptySlots() {
+  const slots = [];
+  for (let r = 0; r < 4; r++)
+    for (let c = 0; c < 4; c++)
+      if (!grid[r][c]) slots.push([r, c]);
+  return slots;
+}
+
+function spawn() {
+  const slots = emptySlots();
+  if (!slots.length) return;
+  const [r, c] = slots[Math.floor(Math.random() * slots.length)];
+  grid[r][c] = Math.random() < 0.9 ? 2 : 4;
+  const el = createTileEl(r, c, grid[r][c], true);
+  board.appendChild(el);
+}
+
+function slideLine(line) {
+  let arr = line.filter(v => v), mergedIdx = [];
+  for (let i = 0; i < arr.length - 1; i++) {
+    if (arr[i] === arr[i + 1]) {
+      arr[i] *= 2;
+      score += arr[i];
+      arr[i + 1] = 0;
+      mergedIdx.push({ idx: i, val: arr[i] });
+    }
+  }
+  arr = arr.filter(v => v);
+  while (arr.length < 4) arr.push(0);
+  return { arr, mergedIdx };
+}
+
+function move(dir) {
+  if (moving) return;
+  let moved = false, mergedPositions = [];
+  const old = grid.map(r => [...r]);
+  const prevScore = score;
+
+  for (let i = 0; i < 4; i++) {
+    let line;
+    if (dir === 'left') line = [...grid[i]];
+    else if (dir === 'right') line = [...grid[i]].reverse();
+    else if (dir === 'up') line = [grid[0][i], grid[1][i], grid[2][i], grid[3][i]];
+    else line = [grid[3][i], grid[2][i], grid[1][i], grid[0][i]];
+
+    const { arr, mergedIdx } = slideLine(line);
+
+    if (dir === 'right' || dir === 'down') arr.reverse();
+
+    for (let j = 0; j < 4; j++) {
+      if (dir === 'left' || dir === 'right') {
+        if (grid[i][j] !== arr[j]) moved = true;
+        grid[i][j] = arr[j];
+      } else {
+        if (grid[j][i] !== arr[j]) moved = true;
+        grid[j][i] = arr[j];
+      }
+    }
+
+    mergedIdx.forEach(m => {
+      let idx = dir === 'right' || dir === 'down' ? 3 - m.idx : m.idx;
+      let mr, mc;
+      if (dir === 'left' || dir === 'right') { mr = i; mc = idx; }
+      else { mr = idx; mc = i; }
+      mergedPositions.push([mr, mc, m.val]);
+    });
+  }
+
+  if (!moved) return;
+
+  moving = true;
+  render(mergedPositions.map(p => [p[0], p[1]]));
+
+  // Emit particles and score floats for merges
+  mergedPositions.forEach(([r, c, val]) => {
+    emitParticles(r, c, val);
+    showScoreFloat(r, c, val);
+  });
+
+  // Score pop animation
+  if (score > prevScore) {
+    const scoreEl = document.getElementById('score');
+    scoreEl.textContent = score;
+    scoreBox.classList.remove('score-pop');
+    void scoreBox.offsetWidth;
+    scoreBox.classList.add('score-pop');
+  }
+
+  if (score > best) {
+    best = score;
+    localStorage.setItem('2048best', best);
+    document.getElementById('best').textContent = best;
+  }
+
+  setTimeout(() => {
+    spawn();
+    moving = false;
+
+    // Check for 2048 win
+    if (grid.flat().includes(2048) && !window.hasWon) {
+      window.hasWon = true;
+      launchConfetti();
+      document.getElementById('endMsg').textContent = 'You Win!';
+      document.getElementById('overlay').classList.add('active');
+    } else if (!canMove()) {
+      document.getElementById('endMsg').textContent = 'Game Over!';
+      document.getElementById('overlay').classList.add('active');
+    }
+  }, 150);
+}
+
+function canMove() {
+  for (let r = 0; r < 4; r++)
+    for (let c = 0; c < 4; c++) {
+      if (!grid[r][c]) return true;
+      if (c < 3 && grid[r][c] === grid[r][c + 1]) return true;
+      if (r < 3 && grid[r][c] === grid[r + 1][c]) return true;
+    }
+  return false;
+}
+
+function newGame() {
+  grid = Array.from({ length: 4 }, () => Array(4).fill(0));
+  score = 0;
+  window.hasWon = false;
+  document.getElementById('score').textContent = 0;
+  document.getElementById('overlay').classList.remove('active');
+  render();
+  spawn();
+  spawn();
+}
+
+document.addEventListener('keydown', e => {
+  const map = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down' };
+  if (map[e.key]) { e.preventDefault(); move(map[e.key]); }
+});
+
+let tx, ty;
+board.addEventListener('touchstart', e => { tx = e.touches[0].clientX; ty = e.touches[0].clientY; });
+board.addEventListener('touchend', e => {
+  const dx = e.changedTouches[0].clientX - tx, dy = e.changedTouches[0].clientY - ty;
+  if (Math.max(Math.abs(dx), Math.abs(dy)) < 30) return;
+  if (Math.abs(dx) > Math.abs(dy)) move(dx > 0 ? 'right' : 'left');
+  else move(dy > 0 ? 'down' : 'up');
+});
+
+newGame();
+</script>
+</body>
+</html>
