@@ -154,47 +154,6 @@ h1 {
   letter-spacing: 0.5px;
 }
 
-.themes {
-  display: flex;
-  gap: 8px;
-  justify-content: center;
-  margin-bottom: 14px;
-}
-.swatch {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  border: 2px solid rgba(255,255,255,0.35);
-  cursor: pointer;
-  padding: 0;
-  background-size: 200% 200%;
-  background-position: 30% 30%;
-  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
-}
-.swatch:hover { transform: scale(1.15); }
-.swatch.active {
-  border-color: #fff;
-  transform: scale(1.2);
-  box-shadow: 0 0 14px rgba(255,255,255,0.55);
-}
-
-.swatch.auto-toggle {
-  background: conic-gradient(from 0deg, #ff0080, #ff8c00, #ffd700, #00ff7f, #00bfff, #8a2be2, #ff0080);
-  color: #fff;
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.5px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  line-height: 1;
-  text-shadow: 0 1px 2px rgba(0,0,0,0.6);
-  margin-left: 4px;
-}
-.swatch.auto-toggle:not(.active) {
-  filter: grayscale(0.7) brightness(0.85);
-}
-
 .board {
   position: relative;
   background: rgba(255, 255, 255, 0.1);
@@ -358,11 +317,6 @@ h1 {
     </div>
   </div>
   <div class="message">Arrow keys or swipe to play</div>
-  <div class="themes" id="themes"></div>
-  <div style="display:flex;justify-content:center;align-items:center;gap:6px;margin-bottom:10px;font-size:11px;color:rgba(255,255,255,0.65);letter-spacing:1px;text-transform:uppercase;">
-    <button class="swatch auto-toggle" id="autoBtn" type="button" title="Auto color shift as the game heats up" aria-label="Toggle auto color shift">AUTO</button>
-    <span id="autoLabel">Auto color: on</span>
-  </div>
   <div style="margin-bottom:14px"><button class="btn" onclick="newGame()">New Game</button></div>
   <div class="board" id="board">
     <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
@@ -523,46 +477,22 @@ const THEMES = {
   },
 };
 
-let activeTheme = localStorage.getItem('2048theme');
-if (!THEMES[activeTheme]) activeTheme = 'aurora';
-let COLORS = THEMES[activeTheme].tiles;
-
-let autoMode = localStorage.getItem('2048auto');
-autoMode = autoMode === null ? true : autoMode === '1';
+let COLORS = THEMES.aurora.tiles;
 
 function updateAutoColor() {
-  if (!autoMode || typeof grid === 'undefined' || !grid) return;
+  if (typeof grid === 'undefined' || !grid) return;
   const flat = grid.flat();
   const filled = flat.filter(v => v > 0).length;
   const maxTile = Math.max(2, ...flat);
   const progression = Math.min(1, Math.log2(maxTile) / Math.log2(2048));
   const fullness = filled / 16;
-  // Blend: progression dominates as you climb, fullness adds urgency when board crowds.
   const intensity = Math.min(1, progression * 0.65 + fullness * 0.55);
-  const hue = intensity * 300;
-  const sat = 1 + intensity * 0.45;
-  document.documentElement.style.setProperty('--auto-hue', hue + 'deg');
-  document.documentElement.style.setProperty('--auto-sat', sat);
-}
-
-function setAutoMode(on) {
-  autoMode = on;
-  localStorage.setItem('2048auto', on ? '1' : '0');
-  const btn = document.getElementById('autoBtn');
-  const lbl = document.getElementById('autoLabel');
-  if (btn) btn.classList.toggle('active', on);
-  if (lbl) lbl.textContent = 'Auto color: ' + (on ? 'on' : 'off');
-  if (!on) {
-    document.documentElement.style.setProperty('--auto-hue', '0deg');
-    document.documentElement.style.setProperty('--auto-sat', '1');
-  } else {
-    updateAutoColor();
-  }
+  document.documentElement.style.setProperty('--auto-hue', (intensity * 300) + 'deg');
+  document.documentElement.style.setProperty('--auto-sat', 1 + intensity * 0.45);
 }
 
 function applyTheme(name) {
   if (!THEMES[name]) return;
-  activeTheme = name;
   const t = THEMES[name];
   document.documentElement.style.setProperty('--body-bg', t.bg);
   document.documentElement.style.setProperty('--orb1', t.orbs[0]);
@@ -571,26 +501,7 @@ function applyTheme(name) {
   const meta = document.querySelector('meta[name="theme-color"]');
   if (meta) meta.setAttribute('content', t.themeColor);
   COLORS = t.tiles;
-  document.querySelectorAll('.swatch').forEach(s => {
-    s.classList.toggle('active', s.dataset.theme === name);
-  });
   if (typeof grid !== 'undefined') render();
-  localStorage.setItem('2048theme', name);
-}
-
-function renderSwatches() {
-  const host = document.getElementById('themes');
-  host.innerHTML = '';
-  Object.entries(THEMES).forEach(([key, t]) => {
-    const b = document.createElement('button');
-    b.className = 'swatch' + (key === activeTheme ? ' active' : '');
-    b.dataset.theme = key;
-    b.style.background = t.swatch;
-    b.title = t.name;
-    b.setAttribute('aria-label', `${t.name} theme`);
-    b.addEventListener('click', () => applyTheme(key));
-    host.appendChild(b);
-  });
 }
 
 const board = document.getElementById('board');
@@ -917,11 +828,8 @@ window.addEventListener('resize', () => {
   resizeTimer = setTimeout(() => { recomputeDims(); render(); }, 100);
 });
 
-renderSwatches();
-applyTheme(activeTheme);
+applyTheme('aurora');
 recomputeDims();
-document.getElementById('autoBtn').addEventListener('click', () => setAutoMode(!autoMode));
-setAutoMode(autoMode);
 newGame();
 </script>
 </body>
