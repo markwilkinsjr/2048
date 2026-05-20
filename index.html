@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#764ba2">
 <title>2048</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&display=swap" rel="stylesheet">
 <style>
@@ -11,11 +12,15 @@
 body {
   font-family: 'Inter', sans-serif;
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   justify-content: center;
   align-items: center;
   touch-action: none;
+  overscroll-behavior: none;
   overflow: hidden;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right)
+           env(safe-area-inset-bottom) env(safe-area-inset-left);
   background: linear-gradient(135deg, #667eea 0%, #764ba2 25%, #f093fb 50%, #f5576c 75%, #4facfe 100%);
   background-size: 400% 400%;
   animation: gradientShift 15s ease infinite;
@@ -48,16 +53,20 @@ body {
   text-align: center;
   position: relative;
   z-index: 1;
+  width: 100%;
+  max-width: 460px;
+  padding: 12px;
 }
 
 h1 {
-  font-size: 72px;
+  font-size: clamp(40px, 12vw, 72px);
   font-weight: 900;
   background: linear-gradient(135deg, #fff 0%, rgba(255,255,255,0.7) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   margin-bottom: 4px;
   letter-spacing: -2px;
+  line-height: 1;
   text-shadow: none;
   filter: drop-shadow(0 2px 10px rgba(0,0,0,0.15));
 }
@@ -76,10 +85,10 @@ h1 {
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.25);
-  padding: 8px 22px;
+  padding: 8px 16px;
   border-radius: 14px;
   text-align: center;
-  min-width: 90px;
+  min-width: 76px;
   transition: transform 0.2s ease;
 }
 .score-box:hover { transform: translateY(-2px); }
@@ -144,9 +153,12 @@ h1 {
   padding: 14px;
   display: grid;
   grid-template-columns: repeat(4, 1fr);
+  grid-template-rows: repeat(4, 1fr);
   gap: 12px;
-  width: 440px;
-  height: 440px;
+  width: min(440px, calc(100vw - 32px));
+  aspect-ratio: 1 / 1;
+  margin: 0 auto;
+  touch-action: none;
   box-shadow:
     0 8px 32px rgba(0, 0, 0, 0.12),
     inset 0 1px 0 rgba(255, 255, 255, 0.2);
@@ -160,16 +172,14 @@ h1 {
 
 .tile {
   position: absolute;
-  width: 94px;
-  height: 94px;
   border-radius: 14px;
   display: flex;
   justify-content: center;
   align-items: center;
   font-weight: 800;
-  font-size: 34px;
   transition: top 0.15s cubic-bezier(0.25, 0.46, 0.45, 0.94),
-              left 0.15s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+              left 0.15s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+              width 0.15s ease, height 0.15s ease;
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.3);
@@ -214,11 +224,21 @@ h1 {
   100% { opacity: 1; backdrop-filter: blur(8px); }
 }
 .overlay p {
-  font-size: 52px;
+  font-size: clamp(34px, 11vw, 52px);
   font-weight: 900;
   color: #fff;
   margin-bottom: 20px;
+  text-align: center;
+  padding: 0 16px;
   text-shadow: 0 2px 20px rgba(0,0,0,0.3);
+}
+
+@media (max-width: 380px) {
+  h1 { letter-spacing: -1px; }
+  .score-box { padding: 6px 12px; min-width: 64px; }
+  .score-box .value { font-size: 20px; }
+  .btn { padding: 10px 22px; font-size: 14px; }
+  .bg-orb { display: none; }
 }
 
 /* Particle system */
@@ -300,10 +320,16 @@ h1 {
 </div>
 
 <script>
-const TILE_SIZE = 94;
 const GAP = 12;
 const PAD = 14;
-const STEP = TILE_SIZE + GAP;
+let TILE_SIZE = 94;     // recomputed from the actual board width on layout
+let STEP = TILE_SIZE + GAP;
+
+function recomputeDims() {
+  const inner = board.clientWidth - PAD * 2 - GAP * 3;
+  TILE_SIZE = inner / 4;
+  STEP = TILE_SIZE + GAP;
+}
 
 const COLORS = {
   2:    { bg: 'rgba(255,255,255,0.45)', fg: '#555', glow: 'rgba(255,255,255,0.3)', size: 34 },
@@ -336,10 +362,13 @@ function createTileEl(r, c, val, isNew) {
   const p = tilePos(r, c);
   el.style.top = p.top + 'px';
   el.style.left = p.left + 'px';
+  el.style.width = TILE_SIZE + 'px';
+  el.style.height = TILE_SIZE + 'px';
   const col = COLORS[val] || { bg: 'rgba(60,50,80,0.85)', fg: '#fff', glow: 'rgba(100,50,200,0.5)', size: 20 };
   el.style.background = col.bg;
   el.style.color = col.fg;
-  el.style.fontSize = col.size + 'px';
+  // Scale font from the original 94px design proportional to actual tile size.
+  el.style.fontSize = (col.size * TILE_SIZE / 94) + 'px';
   el.style.boxShadow = `0 4px 15px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.4), 0 0 20px ${col.glow}`;
   el.textContent = val;
   return el;
@@ -603,15 +632,44 @@ document.addEventListener('keydown', e => {
   if (map[e.key]) { e.preventDefault(); move(map[e.key]); }
 });
 
-let tx, ty;
-board.addEventListener('touchstart', e => { tx = e.touches[0].clientX; ty = e.touches[0].clientY; });
-board.addEventListener('touchend', e => {
-  const dx = e.changedTouches[0].clientX - tx, dy = e.changedTouches[0].clientY - ty;
-  if (Math.max(Math.abs(dx), Math.abs(dy)) < 30) return;
+// Touch / swipe — listen on the whole document so you can swipe anywhere on
+// the page (the board is small on phones). Buttons still receive their tap
+// because we only act on movement past the threshold.
+let tx, ty, ttarget;
+const SWIPE_THRESHOLD = 20;
+
+document.addEventListener('touchstart', e => {
+  tx = e.touches[0].clientX;
+  ty = e.touches[0].clientY;
+  ttarget = e.target;
+}, { passive: true });
+
+// Stop the page from rubber-banding / pulling-to-refresh during a swipe.
+document.addEventListener('touchmove', e => {
+  if (tx == null) return;
+  e.preventDefault();
+}, { passive: false });
+
+document.addEventListener('touchend', e => {
+  if (tx == null) return;
+  const dx = e.changedTouches[0].clientX - tx;
+  const dy = e.changedTouches[0].clientY - ty;
+  tx = ty = null;
+  // Let real taps on buttons / links do their job.
+  if (ttarget && ttarget.closest('button, a')) return;
+  if (Math.max(Math.abs(dx), Math.abs(dy)) < SWIPE_THRESHOLD) return;
   if (Math.abs(dx) > Math.abs(dy)) move(dx > 0 ? 'right' : 'left');
   else move(dy > 0 ? 'down' : 'up');
+}, { passive: true });
+
+// Re-layout tiles when the viewport changes size or orientation.
+let resizeTimer;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => { recomputeDims(); render(); }, 100);
 });
 
+recomputeDims();
 newGame();
 </script>
 </body>
